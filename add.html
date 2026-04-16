@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f0f1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="+ Poznámka">
+<link rel="manifest" href="manifest-add.json">
+<title>Nová poznámka</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=JetBrains+Mono:wght@400;500&family=Literata:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f1a;
+    --surface: #1a1a2e;
+    --border: #2a2a4a;
+    --accent: #e8c547;
+    --accent2: #ff6b6b;
+    --text: #e8e6f0;
+    --text-muted: #7a789a;
+    --text-dim: #4a4870;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body {
+    font-family: 'Literata', Georgia, serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+  }
+  body::before {
+    content:'';
+    position:fixed;inset:0;
+    background: radial-gradient(ellipse at 30% 40%, rgba(232,197,71,0.05) 0%, transparent 60%);
+    pointer-events:none;
+  }
+
+  .header {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 18px 18px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header-left { display:flex; align-items:center; gap:10px; }
+  .back-link {
+    width:38px;height:38px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background:var(--surface);
+    color:var(--text);
+    display:flex;align-items:center;justify-content:center;
+    font-size:17px;
+    text-decoration:none;
+    cursor:pointer;
+  }
+  .header-label {
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    color:var(--text-muted);
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+  }
+  .save-btn {
+    padding: 9px 20px;
+    border-radius:10px;
+    border:none;
+    background:var(--accent);
+    color:#000;
+    font-family:'JetBrains Mono',monospace;
+    font-size:13px;
+    font-weight:500;
+    cursor:pointer;
+    transition:transform 0.15s;
+  }
+  .save-btn:active { transform:scale(0.94); }
+
+  .title-input {
+    font-family:'Playfair Display',serif;
+    font-size:24px;
+    font-weight:700;
+    color:var(--text);
+    background:transparent;
+    border:none;
+    outline:none;
+    width:100%;
+    padding:18px 18px 10px;
+    border-bottom:1px solid var(--border);
+  }
+  .title-input::placeholder { color:var(--text-dim); }
+
+  .content-area {
+    flex:1;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .content-input {
+    font-family:'Literata',Georgia,serif;
+    font-size:16px;
+    line-height:1.85;
+    color:var(--text);
+    background:transparent;
+    border:none;
+    outline:none;
+    width:100%;
+    min-height:280px;
+    padding:16px 18px;
+    resize:none;
+  }
+  .content-input::placeholder { color:var(--text-dim); }
+
+  .bottom-bar {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:10px 18px;
+    border-top:1px solid var(--border);
+    background:var(--bg);
+  }
+  .char-count {
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    color:var(--text-dim);
+    flex:1;
+  }
+  .sync-dot {
+    width:7px;height:7px;
+    border-radius:50%;
+    background:var(--text-dim);
+  }
+  .sync-dot.syncing { background:var(--accent); animation:pulse 1s infinite; }
+  .sync-dot.done { background:#4caf50; }
+  .sync-dot.error { background:var(--accent2); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .sync-label {
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    color:var(--text-dim);
+  }
+
+  /* Saved flash */
+  .saved-flash {
+    position:fixed;
+    top:calc(20px + var(--safe-top));
+    left:50%;
+    transform:translateX(-50%) translateY(-10px);
+    background:rgba(232,197,71,0.15);
+    border:1px solid var(--accent);
+    color:var(--accent);
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    padding:8px 20px;
+    border-radius:20px;
+    opacity:0;
+    transition:all 0.3s;
+    pointer-events:none;
+    white-space:nowrap;
+  }
+  .saved-flash.show { opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <a class="back-link" href="index.html">←</a>
+    <div class="header-label">Nová poznámka</div>
+  </div>
+  <button class="save-btn" id="save-btn">Uložit</button>
+</div>
+
+<input class="title-input" id="note-title" placeholder="Název…" maxlength="80" autofocus>
+
+<div class="content-area">
+  <textarea class="content-input" id="note-content" placeholder="Co ti leží na srdci…"></textarea>
+</div>
+
+<div class="bottom-bar">
+  <span class="char-count" id="char-count">0 znaků</span>
+  <div class="sync-dot" id="sync-dot"></div>
+  <span class="sync-label" id="sync-label"></span>
+</div>
+
+<div class="saved-flash" id="saved-flash">Poznámka uložena ✓</div>
+
+<script>
+// ── SHARED STORAGE with main app ──
+const DB = {
+  save(notes) { localStorage.setItem('notes_v1', JSON.stringify(notes)); },
+  load() { try { return JSON.parse(localStorage.getItem('notes_v1')) || []; } catch { return []; } },
+  loadGist() { return { token: localStorage.getItem('gist_token')||'', id: localStorage.getItem('gist_id')||'' }; },
+  saveGist(token, id) { localStorage.setItem('gist_token', token); localStorage.setItem('gist_id', id); }
+};
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+// Char counter
+document.getElementById('note-content').addEventListener('input', () => {
+  const n = document.getElementById('note-content').value.length;
+  document.getElementById('char-count').textContent = n + ' znaku';
+});
+
+// Auto-resize textarea
+document.getElementById('note-content').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = this.scrollHeight + 'px';
+});
+
+// ── GIST PUSH ──
+const GIST_FILENAME = 'poznamky.json';
+
+async function gistPush(notes) {
+  const { token, id } = DB.loadGist();
+  if (!token) return false;
+  const body = { files: { [GIST_FILENAME]: { content: JSON.stringify(notes, null, 2) } } };
+  let url = 'https://api.github.com/gists' + (id ? '/' + id : '');
+  let method = id ? 'PATCH' : 'POST';
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', Accept: 'application/vnd.github+json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) return false;
+    if (!id) DB.saveGist(token, data.id);
+    return true;
+  } catch { return false; }
+}
+
+function setSyncState(state) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  dot.className = 'sync-dot' + (state ? ' ' + state : '');
+  lbl.textContent = state === 'syncing' ? 'sync...' : state === 'done' ? 'ulozeno' : state === 'error' ? 'offline' : '';
+}
+
+function showFlash() {
+  const el = document.getElementById('saved-flash');
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+// ── SAVE ──
+document.getElementById('save-btn').addEventListener('click', async () => {
+  const title = document.getElementById('note-title').value.trim();
+  const content = document.getElementById('note-content').value.trim();
+  if (!title && !content) { window.location.href = 'index.html'; return; }
+
+  const notes = DB.load();
+  const note = {
+    id: uid(),
+    title: title || 'Bez nazvu',
+    content,
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+  notes.unshift(note);
+  DB.save(notes);
+  showFlash();
+
+  // Sync to Gist
+  const { token } = DB.loadGist();
+  if (token) {
+    setSyncState('syncing');
+    const ok = await gistPush(notes);
+    setSyncState(ok ? 'done' : 'error');
+  }
+
+  // Navigate back after flash
+  setTimeout(() => { window.location.href = 'index.html'; }, 1800);
+});
+
+// Keyboard shortcut: Ctrl/Cmd+Enter to save
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') document.getElementById('save-btn').click();
+});
+
+// Focus title on load
+window.addEventListener('load', () => {
+  document.getElementById('note-title').focus();
+});
+</script>
+</body>
+</html>

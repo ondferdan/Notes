@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Poznámky">
+<link rel="manifest" href="manifest.json">
+<title>Poznámky</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=JetBrains+Mono:wght@400;500&family=Literata:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f1a;
+    --surface: #1a1a2e;
+    --surface2: #16213e;
+    --border: #2a2a4a;
+    --accent: #e8c547;
+    --accent2: #ff6b6b;
+    --text: #e8e6f0;
+    --text-muted: #7a789a;
+    --text-dim: #4a4870;
+    --radius: 12px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Literata', Georgia, serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100dvh;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Background texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse at 20% 50%, rgba(232,197,71,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(100,80,200,0.06) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── SCREENS ── */
+  .screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+    transition: transform 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.35s ease;
+    z-index: 1;
+  }
+  .screen.hidden { transform: translateX(100%); opacity: 0; pointer-events: none; }
+  .screen.slide-left { transform: translateX(-30%); opacity: 0; pointer-events: none; }
+
+  /* ── HEADER ── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    position: relative;
+  }
+  .header-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.5px;
+  }
+  .header-title span { color: var(--accent); }
+  .header-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  /* ── ICON BUTTONS ── */
+  .icon-btn {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .icon-btn:active { transform: scale(0.92); background: var(--border); }
+  .icon-btn.accent { background: var(--accent); color: #000; border-color: var(--accent); }
+
+  /* ── SEARCH ── */
+  .search-bar {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .search-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px 10px 38px;
+    color: var(--text);
+    font-family: 'Literata', serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    position: relative;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .search-wrap { position: relative; }
+  .search-icon {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    color: var(--text-muted); font-size: 15px; pointer-events: none;
+  }
+
+  /* ── NOTES LIST ── */
+  .notes-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .notes-list::-webkit-scrollbar { display: none; }
+
+  .note-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .note-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .note-card:active { transform: scale(0.98); background: var(--surface2); }
+  .note-card:active::before { opacity: 1; }
+
+  .note-card-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .note-card-preview {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .note-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .note-date {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+  .note-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    background: rgba(232,197,71,0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+  }
+  .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
+  .empty-text { font-size: 15px; line-height: 1.6; }
+
+  /* FAB */
+  .fab {
+    position: absolute;
+    bottom: calc(24px + var(--safe-bottom));
+    right: 20px;
+    width: 56px; height: 56px;
+    border-radius: 16px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    font-size: 26px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(232,197,71,0.35);
+    transition: all 0.2s;
+    z-index: 10;
+  }
+  .fab:active { transform: scale(0.92) rotate(45deg); }
+
+  /* ── EDITOR ── */
+  #editor-screen .header { padding-bottom: 12px; }
+  .editor-title-input {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    outline: none;
+    width: 100%;
+    padding: 16px 20px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .editor-title-input::placeholder { color: var(--text-dim); }
+
+  .editor-body {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .editor-content {
+    font-family: 'Literata', Georgia, serif;
+    font-size: 15px;
+    line-height: 1.8;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    outline: none;
+    width: 100%;
+    min-height: 300px;
+    padding: 16px 20px;
+    resize: none;
+  }
+  .editor-content::placeholder { color: var(--text-dim); }
+
+  /* Toolbar */
+  .editor-toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--bg);
+  }
+  .editor-toolbar::-webkit-scrollbar { display: none; }
+
+  .tool-btn {
+    flex-shrink: 0;
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .tool-btn:active { background: var(--border); color: var(--text); }
+  .tool-btn.ai { color: var(--accent); border-color: rgba(232,197,71,0.3); }
+  .tool-btn.ai:active { background: rgba(232,197,71,0.1); }
+  .tool-btn.danger { color: var(--accent2); border-color: rgba(255,107,107,0.3); }
+
+  /* ── AI OVERLAY ── */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    display: flex;
+    align-items: flex-end;
+    transition: opacity 0.3s;
+  }
+  .overlay.hidden { opacity: 0; pointer-events: none; }
+  .overlay-sheet {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 20px 20px 0 0;
+    padding: 20px;
+    padding-bottom: calc(20px + var(--safe-bottom));
+    width: 100%;
+    max-height: 70dvh;
+    overflow-y: auto;
+    transform: translateY(0);
+    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+  .overlay.hidden .overlay-sheet { transform: translateY(100%); }
+  .overlay-handle {
+    width: 40px; height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 0 auto 16px;
+  }
+  .overlay-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .overlay-title .badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    background: var(--accent);
+    color: #000;
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+  .ai-result {
+    font-family: 'Literata', serif;
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    min-height: 80px;
+    white-space: pre-wrap;
+  }
+  .ai-loading {
+    display: flex; align-items: center; gap: 10px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+  }
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .ai-actions {
+    display: flex; gap: 8px; margin-top: 12px;
+  }
+  .ai-apply-btn {
+    flex: 1;
+    padding: 11px;
+    border-radius: 10px;
+    border: none;
+    background: var(--accent);
+    color: #000;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .ai-close-btn {
+    padding: 11px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  /* API key screen */
+  .api-screen {
+    padding: 24px 20px;
+  }
+  .api-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .api-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    outline: none;
+    margin-bottom: 12px;
+  }
+  .api-input:focus { border-color: var(--accent); }
+  .api-save-btn {
+    width: 100%;
+    padding: 13px;
+    border-radius: 10px;
+    border: none;
+    background: var(--accent);
+    color: #000;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .api-note {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.6;
+    margin-top: 12px;
+  }
+
+  /* Stats bar */
+  .stats-bar {
+    display: flex;
+    gap: 16px;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .stat {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .stat span { color: var(--accent); font-weight: 500; }
+
+  /* Delete confirm */
+  .delete-confirm {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    background: rgba(255,107,107,0.05);
+    align-items: center;
+  }
+  .delete-confirm p {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .confirm-btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--accent2);
+    background: transparent;
+    color: var(--accent2);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .cancel-btn {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .hidden { display: none !important; }
+
+  /* Tag filter */
+  .tag-row {
+    display: flex;
+    gap: 8px;
+    padding: 8px 16px;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--border);
+  }
+  .tag-row::-webkit-scrollbar { display: none; }
+  .tag-filter {
+    flex-shrink: 0;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tag-filter.active {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+  }
+
+  /* Sort row */
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+</style>
+</head>
+<body>
+
+<!-- ── DASHBOARD ── -->
+<div class="screen" id="dashboard-screen">
+  <div class="header">
+    <div>
+      <div class="header-title">Pozná<span>mky</span></div>
+      <div class="header-sub" id="notes-count">0 poznámek</div>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" id="settings-btn" title="Nastavení">⚙️</button>
+    </div>
+  </div>
+
+  <div class="search-bar">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" id="search-input" type="search" placeholder="Hledat v poznámkách…">
+    </div>
+  </div>
+
+  <div class="tag-row" id="tag-row">
+    <button class="tag-filter active" data-tag="all">Vše</button>
+  </div>
+
+  <div class="notes-list" id="notes-list">
+    <div class="empty-state">
+      <div class="empty-icon">📝</div>
+      <div class="empty-text">Zatím žádné poznámky.<br>Vytvoř první klepnutím na +</div>
+    </div>
+  </div>
+
+  <button class="fab" id="new-note-btn">+</button>
+</div>
+
+<!-- ── EDITOR ── -->
+<div class="screen hidden" id="editor-screen">
+  <div class="header">
+    <button class="icon-btn" id="back-btn">←</button>
+    <div style="flex:1; padding: 0 12px;">
+      <div class="header-sub" id="editor-date">Nová poznámka</div>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" id="share-btn" title="Sdílet">↗</button>
+      <button class="icon-btn accent" id="save-btn">✓</button>
+    </div>
+  </div>
+
+  <input class="editor-title-input" id="note-title" placeholder="Název poznámky…" maxlength="80">
+
+  <div class="editor-body">
+    <textarea class="editor-content" id="note-content" placeholder="Začni psát…"></textarea>
+  </div>
+
+  <div class="editor-toolbar">
+    <button class="tool-btn ai" id="ai-shrnout-btn">✦ Shrnutí</button>
+    <button class="tool-btn ai" id="ai-format-btn">✦ Formátovat</button>
+    <button class="tool-btn ai" id="ai-bullets-btn">✦ Odrážky</button>
+    <button class="tool-btn ai" id="ai-expand-btn">✦ Rozvinout</button>
+    <button class="tool-btn danger" id="delete-btn">🗑 Smazat</button>
+  </div>
+
+  <div class="delete-confirm hidden" id="delete-confirm">
+    <p>Opravdu smazat tuto poznámku?</p>
+    <button class="cancel-btn" id="cancel-delete">Ne</button>
+    <button class="confirm-btn" id="confirm-delete">Smazat</button>
+  </div>
+</div>
+
+<!-- ── SETTINGS ── -->
+<div class="screen hidden" id="settings-screen">
+  <div class="header">
+    <button class="icon-btn" id="settings-back-btn">←</button>
+    <div style="flex:1; padding: 0 12px;">
+      <div class="header-title" style="font-size:20px;">Nastavení</div>
+    </div>
+  </div>
+
+  <div class="api-screen" style="overflow-y:auto; flex:1;">
+
+    <!-- GIST SYNC -->
+    <div style="background:rgba(232,197,71,0.06); border:1px solid rgba(232,197,71,0.2); border-radius:12px; padding:14px; margin-bottom:20px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <span style="font-size:18px;">☁️</span>
+        <div class="api-label" style="margin:0;">GitHub Gist synchronizace</div>
+        <span id="sync-badge" style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10px; padding:2px 8px; border-radius:4px; background:var(--border); color:var(--text-muted);">vypnuto</span>
+      </div>
+      <div class="api-label">Personal Access Token</div>
+      <input class="api-input" id="gist-token-input" type="password" placeholder="ghp_…" style="margin-bottom:8px;">
+      <div class="api-label">Gist ID (nechat prázdné = vytvořit nový)</div>
+      <input class="api-input" id="gist-id-input" type="text" placeholder="abc123def456…" style="margin-bottom:10px;">
+      <button class="api-save-btn" id="gist-save-btn">Uložit a připojit</button>
+      <p class="api-note" style="margin-top:10px;">
+        Token vytvoříš na <strong>github.com → Settings → Developer settings → Personal access tokens</strong>.
+        Stačí scope <strong>gist</strong>. Token se ukládá jen lokálně.
+      </p>
+    </div>
+
+    <!-- SYNC ACTIONS -->
+    <div style="display:flex;gap:8px;margin-bottom:20px;">
+      <button class="tool-btn" id="sync-pull-btn" style="flex:1;justify-content:center;padding:11px;">
+        ⬇ Stáhnout z Gistu
+      </button>
+      <button class="tool-btn" id="sync-push-btn" style="flex:1;justify-content:center;padding:11px;">
+        ⬆ Nahrát do Gistu
+      </button>
+    </div>
+    <div id="sync-status" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-muted);margin-bottom:20px;min-height:16px;"></div>
+
+    <!-- AI KEY -->
+    <div class="api-label">Anthropic API klíč (pro AI funkce)</div>
+    <input class="api-input" id="api-key-input" type="password" placeholder="sk-ant-…">
+    <button class="api-save-btn" id="api-save-btn">Uložit klíč</button>
+    <p class="api-note">
+      Získáš ho na <strong>console.anthropic.com</strong>.
+    </p>
+
+    <!-- EXPORT / IMPORT -->
+    <div style="margin-top: 24px;">
+      <div class="api-label">Export všech poznámek</div>
+      <button class="tool-btn" id="export-btn" style="width:100%; justify-content:center; padding: 12px;">
+        📤 Exportovat jako JSON
+      </button>
+    </div>
+    <div style="margin-top: 16px;">
+      <div class="api-label">Import poznámek (JSON)</div>
+      <label class="tool-btn" style="width:100%; justify-content:center; padding: 12px; cursor:pointer;">
+        📥 Importovat JSON
+        <input type="file" id="import-file" accept=".json" style="display:none">
+      </label>
+    </div>
+    <div style="margin-top: 24px; padding-bottom: 24px;">
+      <div class="stat">Verze <span>1.1</span> · Ondřejovy Poznámky PWA</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── AI OVERLAY ── -->
+<div class="overlay hidden" id="ai-overlay">
+  <div class="overlay-sheet">
+    <div class="overlay-handle"></div>
+    <div class="overlay-title">
+      <span id="ai-overlay-title">AI</span>
+      <span class="badge">Claude</span>
+    </div>
+    <div id="ai-content">
+      <div class="ai-loading">
+        <div class="spinner"></div>
+        <span>Zpracovávám…</span>
+      </div>
+    </div>
+    <div class="ai-actions hidden" id="ai-actions">
+      <button class="ai-apply-btn" id="ai-apply-btn">Použít v poznámce</button>
+      <button class="ai-close-btn" id="ai-close-btn">Zavřít</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STORAGE ──
+const DB = {
+  save(notes) { localStorage.setItem('notes_v1', JSON.stringify(notes)); },
+  load() {
+    try { return JSON.parse(localStorage.getItem('notes_v1')) || []; }
+    catch { return []; }
+  },
+  saveKey(k) { localStorage.setItem('anthropic_key', k); },
+  loadKey() { return localStorage.getItem('anthropic_key') || ''; },
+  saveGist(token, id) { localStorage.setItem('gist_token', token); localStorage.setItem('gist_id', id); },
+  loadGist() { return { token: localStorage.getItem('gist_token')||'', id: localStorage.getItem('gist_id')||'' }; }
+};
+
+// ── GITHUB GIST SYNC ──
+const GIST_FILENAME = 'poznamky.json';
+
+async function gistPush(notesArr) {
+  const { token, id } = DB.loadGist();
+  if (!token) return { ok: false, msg: 'Chybí GitHub token.' };
+  const body = { files: { [GIST_FILENAME]: { content: JSON.stringify(notesArr, null, 2) } } };
+  let url = 'https://api.github.com/gists';
+  let method = 'POST';
+  if (id) { url += '/' + id; method = 'PATCH'; }
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', Accept: 'application/vnd.github+json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || res.status);
+    if (!id) { DB.saveGist(token, data.id); document.getElementById('gist-id-input').value = data.id; }
+    return { ok: true, msg: `Nahráno \u2713 (${notesArr.length} poznamek)` };
+  } catch(e) { return { ok: false, msg: 'Chyba: ' + e.message }; }
+}
+
+async function gistPull() {
+  const { token, id } = DB.loadGist();
+  if (!token || !id) return { ok: false, msg: 'Chybi token nebo Gist ID.' };
+  try {
+    const res = await fetch('https://api.github.com/gists/' + id, {
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json' }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || res.status);
+    const content = data.files?.[GIST_FILENAME]?.content;
+    if (!content) throw new Error('Soubor poznamky.json nenalezen v Gistu.');
+    const remote = JSON.parse(content);
+    const merged = [...remote];
+    notes.forEach(local => { if (!merged.find(r => r.id === local.id)) merged.push(local); });
+    notes = merged;
+    DB.save(notes);
+    renderList();
+    return { ok: true, msg: 'Stazeno \u2713 (' + remote.length + ' poznamek)' };
+  } catch(e) { return { ok: false, msg: 'Chyba: ' + e.message }; }
+}
+
+function setSyncStatus(msg, ok) {
+  const el = document.getElementById('sync-status');
+  if (el) { el.textContent = msg; el.style.color = ok ? 'var(--accent)' : 'var(--accent2)'; }
+}
+
+function updateSyncBadge() {
+  const { token, id } = DB.loadGist();
+  const badge = document.getElementById('sync-badge');
+  if (!badge) return;
+  if (token && id) { badge.textContent = 'aktivni'; badge.style.background = 'rgba(232,197,71,0.15)'; badge.style.color = 'var(--accent)'; }
+  else if (token) { badge.textContent = 'token OK'; badge.style.background = 'rgba(232,197,71,0.08)'; badge.style.color = 'var(--text-muted)'; }
+  else { badge.textContent = 'vypnuto'; badge.style.background = 'var(--border)'; badge.style.color = 'var(--text-muted)'; }
+}
+
+// ── STATE ──
+let notes = DB.load();
+let currentNote = null;
+let currentFilter = 'all';
+let aiResultText = '';
+let searchQuery = '';
+
+// ── UTILS ──
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+function fmt(ts) {
+  const d = new Date(ts);
+  return d.toLocaleDateString('cs-CZ', { day:'numeric', month:'short' }) + 
+    ' ' + d.toLocaleTimeString('cs-CZ', { hour:'2-digit', minute:'2-digit' });
+}
+function extractTag(title, content) {
+  const text = (title + ' ' + content).toLowerCase();
+  if (text.includes('#práce') || text.includes('práce')) return 'práce';
+  if (text.includes('#osobní') || text.includes('osobní')) return 'osobní';
+  if (text.includes('#nápad') || text.includes('nápad')) return 'nápady';
+  if (text.includes('#střed') || text.includes('střed') || text.includes('kc moravia')) return 'střed';
+  return null;
+}
+
+// ── SCREENS ──
+function showScreen(id, dir = 'right') {
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.remove('hidden','slide-left');
+    if (s.id !== id) {
+      s.classList.add(dir === 'right' ? 'hidden' : 'slide-left');
+    }
+  });
+}
+
+// ── RENDER LIST ──
+function renderList() {
+  const list = document.getElementById('notes-list');
+  const countEl = document.getElementById('notes-count');
+
+  let filtered = notes.filter(n => {
+    const matchSearch = !searchQuery ||
+      n.title.toLowerCase().includes(searchQuery) ||
+      n.content.toLowerCase().includes(searchQuery);
+    const matchTag = currentFilter === 'all' || extractTag(n.title, n.content) === currentFilter;
+    return matchSearch && matchTag;
+  });
+
+  filtered.sort((a,b) => b.updatedAt - a.updatedAt);
+
+  countEl.textContent = `${notes.length} poznámek`;
+
+  // Tags
+  const allTags = [...new Set(notes.map(n => extractTag(n.title, n.content)).filter(Boolean))];
+  const tagRow = document.getElementById('tag-row');
+  tagRow.innerHTML = '<button class="tag-filter ' + (currentFilter==='all'?'active':'') + '" data-tag="all">Vše</button>';
+  allTags.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'tag-filter' + (currentFilter===t?' active':'');
+    btn.dataset.tag = t;
+    btn.textContent = t;
+    tagRow.appendChild(btn);
+  });
+  tagRow.querySelectorAll('.tag-filter').forEach(b => {
+    b.addEventListener('click', () => { currentFilter = b.dataset.tag; renderList(); });
+  });
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">${searchQuery?'🔍':'📝'}</div><div class="empty-text">${searchQuery?'Nic nenalezeno.':'Zatím žádné poznámky.<br>Vytvoř první klepnutím na +'}</div></div>`;
+    return;
+  }
+
+  list.innerHTML = '';
+  filtered.forEach(note => {
+    const card = document.createElement('div');
+    card.className = 'note-card';
+    const tag = extractTag(note.title, note.content);
+    const preview = note.content.replace(/\n/g,' ').slice(0, 100);
+    card.innerHTML = `
+      <div class="note-card-title">${note.title || 'Bez názvu'}</div>
+      <div class="note-card-preview">${preview || '<em>Prázdná poznámka</em>'}</div>
+      <div class="note-card-meta">
+        <span class="note-date">${fmt(note.updatedAt)}</span>
+        ${tag ? `<span class="note-tag">${tag}</span>` : ''}
+      </div>`;
+    card.addEventListener('click', () => openNote(note.id));
+    list.appendChild(card);
+  });
+}
+
+// ── OPEN NOTE ──
+function openNote(id) {
+  currentNote = id ? notes.find(n => n.id === id) : null;
+  if (id && !currentNote) return;
+
+  document.getElementById('note-title').value = currentNote?.title || '';
+  document.getElementById('note-content').value = currentNote?.content || '';
+  document.getElementById('editor-date').textContent = currentNote ? fmt(currentNote.updatedAt) : 'Nová poznámka';
+  document.getElementById('delete-confirm').classList.add('hidden');
+  document.getElementById('delete-btn').classList.remove('hidden');
+  if (!currentNote) document.getElementById('delete-btn').classList.add('hidden');
+
+  showScreen('editor-screen');
+  setTimeout(() => {
+    if (!currentNote) document.getElementById('note-title').focus();
+  }, 350);
+}
+
+// ── SAVE ──
+function saveNote() {
+  const title = document.getElementById('note-title').value.trim();
+  const content = document.getElementById('note-content').value.trim();
+  if (!title && !content) { showScreen('dashboard-screen', 'left'); renderList(); return; }
+
+  if (currentNote) {
+    currentNote.title = title || 'Bez názvu';
+    currentNote.content = content;
+    currentNote.updatedAt = Date.now();
+  } else {
+    const newNote = { id: uid(), title: title || 'Bez názvu', content, createdAt: Date.now(), updatedAt: Date.now() };
+    notes.unshift(newNote);
+    currentNote = newNote;
+  }
+  DB.save(notes);
+  renderList();
+  showScreen('dashboard-screen', 'left');
+  autoSync(); // Gist sync
+}
+
+// ── DELETE ──
+function deleteNote() {
+  if (!currentNote) return;
+  notes = notes.filter(n => n.id !== currentNote.id);
+  DB.save(notes);
+  renderList();
+  showScreen('dashboard-screen', 'left');
+}
+
+// ── AI ──
+async function callAI(prompt, mode) {
+  const key = DB.loadKey();
+  if (!key) {
+    showAIResult('⚠️ Chybí API klíč.\nNastavení → zadej Anthropic API klíč.', mode, false);
+    return;
+  }
+
+  showAIOverlay(mode);
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const text = data.content?.[0]?.text || '';
+    showAIResult(text, mode, true);
+  } catch(e) {
+    showAIResult('❌ Chyba: ' + e.message, mode, false);
+  }
+}
+
+function showAIOverlay(title) {
+  const overlay = document.getElementById('ai-overlay');
+  const content = document.getElementById('ai-content');
+  const actions = document.getElementById('ai-actions');
+  document.getElementById('ai-overlay-title').textContent = title;
+  content.innerHTML = '<div class="ai-loading"><div class="spinner"></div><span>Zpracovávám…</span></div>';
+  actions.classList.add('hidden');
+  overlay.classList.remove('hidden');
+  aiResultText = '';
+}
+
+function showAIResult(text, title, canApply) {
+  const content = document.getElementById('ai-content');
+  const actions = document.getElementById('ai-actions');
+  content.innerHTML = `<div class="ai-result">${text}</div>`;
+  aiResultText = text;
+  if (canApply) actions.classList.remove('hidden');
+  else { actions.innerHTML = '<button class="ai-close-btn" id="ai-close-btn" style="width:100%">Zavřít</button>'; actions.classList.remove('hidden'); rebindClose(); }
+}
+
+function rebindClose() {
+  document.getElementById('ai-close-btn')?.addEventListener('click', closeAIOverlay);
+}
+
+function closeAIOverlay() {
+  document.getElementById('ai-overlay').classList.add('hidden');
+}
+
+function getEditorContent() {
+  return document.getElementById('note-content').value.trim();
+}
+
+// ── SHARE ──
+async function shareNote() {
+  const title = document.getElementById('note-title').value || 'Poznámka';
+  const content = document.getElementById('note-content').value;
+  if (navigator.share) {
+    await navigator.share({ title, text: content });
+  } else {
+    await navigator.clipboard.writeText(title + '\n\n' + content);
+    alert('Zkopírováno do schránky!');
+  }
+}
+
+// ── EVENTS ──
+document.getElementById('new-note-btn').addEventListener('click', () => { currentNote = null; openNote(null); });
+document.getElementById('back-btn').addEventListener('click', () => { showScreen('dashboard-screen', 'left'); renderList(); });
+document.getElementById('save-btn').addEventListener('click', saveNote);
+document.getElementById('share-btn').addEventListener('click', shareNote);
+
+document.getElementById('delete-btn').addEventListener('click', () => {
+  document.getElementById('delete-confirm').classList.remove('hidden');
+  document.getElementById('delete-btn').classList.add('hidden');
+});
+document.getElementById('cancel-delete').addEventListener('click', () => {
+  document.getElementById('delete-confirm').classList.add('hidden');
+  document.getElementById('delete-btn').classList.remove('hidden');
+});
+document.getElementById('confirm-delete').addEventListener('click', deleteNote);
+
+document.getElementById('search-input').addEventListener('input', e => {
+  searchQuery = e.target.value.toLowerCase().trim();
+  renderList();
+});
+
+document.getElementById('settings-btn').addEventListener('click', () => {
+  document.getElementById('api-key-input').value = DB.loadKey();
+  const { token, id } = DB.loadGist();
+  document.getElementById('gist-token-input').value = token;
+  document.getElementById('gist-id-input').value = id;
+  updateSyncBadge();
+  showScreen('settings-screen');
+});
+document.getElementById('settings-back-btn').addEventListener('click', () => showScreen('dashboard-screen','left'));
+document.getElementById('api-save-btn').addEventListener('click', () => {
+  DB.saveKey(document.getElementById('api-key-input').value.trim());
+  alert('Klic ulozen');
+});
+
+document.getElementById('gist-save-btn').addEventListener('click', () => {
+  const token = document.getElementById('gist-token-input').value.trim();
+  const id = document.getElementById('gist-id-input').value.trim();
+  DB.saveGist(token, id);
+  updateSyncBadge();
+  setSyncStatus(token ? 'Nastaveni ulozeno. Otestuj tlacitkem Nahrat.' : 'Token smazan.', !!token);
+});
+
+document.getElementById('sync-push-btn').addEventListener('click', async () => {
+  setSyncStatus('Nahravani...', true);
+  const r = await gistPush(notes);
+  setSyncStatus(r.msg, r.ok);
+  updateSyncBadge();
+});
+
+document.getElementById('sync-pull-btn').addEventListener('click', async () => {
+  setSyncStatus('Stahovani...', true);
+  const r = await gistPull();
+  setSyncStatus(r.msg, r.ok);
+});
+
+// AI buttons
+document.getElementById('ai-shrnout-btn').addEventListener('click', () => {
+  const c = getEditorContent();
+  if (!c) return alert('Poznámka je prázdná.');
+  callAI(`Shrň tuto poznámku stručně v češtině (max 3-5 vět):\n\n${c}`, 'Shrnutí');
+});
+document.getElementById('ai-format-btn').addEventListener('click', () => {
+  const c = getEditorContent();
+  if (!c) return alert('Poznámka je prázdná.');
+  callAI(`Přeformátuj a uprav tuto poznámku do přehledné podoby. Zachovej obsah, pouze zlepši strukturu a srozumitelnost. Piš česky:\n\n${c}`, 'Formátování');
+});
+document.getElementById('ai-bullets-btn').addEventListener('click', () => {
+  const c = getEditorContent();
+  if (!c) return alert('Poznámka je prázdná.');
+  callAI(`Převeď obsah této poznámky do přehledných odrážkových bodů v češtině:\n\n${c}`, 'Odrážky');
+});
+document.getElementById('ai-expand-btn').addEventListener('click', () => {
+  const c = getEditorContent();
+  if (!c) return alert('Poznámka je prázdná.');
+  callAI(`Rozviň a doplň tuto poznámku o relevantní detaily a kontext. Piš česky, styl zachovej:\n\n${c}`, 'Rozvinout');
+});
+
+// AI overlay actions
+document.getElementById('ai-apply-btn').addEventListener('click', () => {
+  document.getElementById('note-content').value = aiResultText;
+  closeAIOverlay();
+});
+document.getElementById('ai-close-btn').addEventListener('click', closeAIOverlay);
+document.getElementById('ai-overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeAIOverlay();
+});
+
+// Export / Import
+document.getElementById('export-btn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(notes, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `poznamky_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+});
+document.getElementById('import-file').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      const imported = JSON.parse(ev.target.result);
+      if (!Array.isArray(imported)) throw new Error();
+      notes = [...imported, ...notes.filter(n => !imported.find(i => i.id === n.id))];
+      DB.save(notes);
+      renderList();
+      alert(`Importováno ${imported.length} poznámek ✓`);
+    } catch { alert('Chyba při importu — soubor není platný JSON.'); }
+  };
+  r.readAsText(file);
+});
+
+// Auto-push to Gist after save if configured
+async function autoSync() {
+  const { token, id } = DB.loadGist();
+  if (token && id) { await gistPush(notes); }
+}
+
+// Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+// Init
+renderList();
+// Auto-pull on load if Gist configured
+(async () => {
+  const { token, id } = DB.loadGist();
+  if (token && id) {
+    const r = await gistPull();
+    if (r.ok) {
+      const countEl = document.getElementById('notes-count');
+      if (countEl) countEl.textContent = notes.length + ' poznamek (sync OK)';
+    }
+  }
+})();
+</script>
+</body>
+</html>
