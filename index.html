@@ -906,12 +906,13 @@ async function callAI(prompt, mode) {
         messages: [{ role: 'user', content: prompt }]
       })
     });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error.message);
+    let data;
+    try { data = await res.json(); } catch(je) { throw new Error('HTTP ' + res.status + ' — odpověď není JSON'); }
+    if (!res.ok || data.error) throw new Error('HTTP ' + res.status + ': ' + (data.error?.message || JSON.stringify(data.error) || 'neznámá chyba'));
     const text = data.content?.[0]?.text || '';
     showAIResult(text, mode, true);
   } catch(e) {
-    showAIResult('❌ Chyba: ' + e.message, mode, false);
+    showAIResult('Chyba: ' + e.message, mode, false);
   }
 }
 
