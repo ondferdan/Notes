@@ -940,6 +940,7 @@ function renderList() {
 
 // ── OPEN NOTE ──
 function openNote(id) {
+  exitChecklist();
   currentNote = id ? notes.find(n => n.id === id) : null;
   if (id && !currentNote) return;
 
@@ -1238,14 +1239,7 @@ document.getElementById('checklist-btn').addEventListener('click', () => {
   else enterChecklist();
 });
 
-// Reset checklist mode when opening new note
-const _origOpenNote = openNote;
-function openNote(id) {
-  exitChecklist();
-  _origOpenNote(id);
-}
-
-
+// AI buttons
 document.getElementById('ai-shrnout-btn').addEventListener('click', () => {
   const c = getEditorContent();
   if (!c) return alert('Poznámka je prázdná.');
