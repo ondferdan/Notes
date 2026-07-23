@@ -247,6 +247,8 @@
     flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
   }
   .editor-content {
     font-family: 'Literata', Georgia, serif;
@@ -257,7 +259,8 @@
     border: none;
     outline: none;
     width: 100%;
-    min-height: 300px;
+    flex: 1;
+    min-height: 200px;
     padding: 16px 20px;
     resize: none;
   }
