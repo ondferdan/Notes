@@ -245,10 +245,10 @@
 
   .editor-body {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    display: flex;
-    flex-direction: column;
+    position: relative;
   }
   .editor-content {
     font-family: 'Literata', Georgia, serif;
@@ -259,10 +259,10 @@
     border: none;
     outline: none;
     width: 100%;
-    flex: 1;
-    min-height: 200px;
+    min-height: 100%;
     padding: 16px 20px;
     resize: none;
+    display: block;
   }
   .editor-content::placeholder { color: var(--text-dim); }
 
