@@ -227,6 +227,100 @@
   }
   .fab:active { transform: scale(0.92) rotate(45deg); }
 
+  /* ── CHECKLIST ── */
+  .checklist-view {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 12px 16px;
+  }
+  .checklist-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .checklist-item:active { background: rgba(255,255,255,0.03); border-radius: 8px; }
+  .checkbox {
+    width: 24px; height: 24px;
+    border-radius: 6px;
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 13px;
+    color: #000;
+    transition: all 0.15s;
+    margin-top: 1px;
+  }
+  .checkbox.checked {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .checklist-text {
+    font-family: 'Literata', serif;
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--text);
+    flex: 1;
+    padding-top: 2px;
+    transition: color 0.15s;
+  }
+  .checklist-text.done {
+    color: var(--text-dim);
+    text-decoration: line-through;
+    text-decoration-color: var(--text-muted);
+  }
+  .checklist-section {
+    font-family: 'Playfair Display', serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 16px 4px 6px;
+  }
+  .checklist-add {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 4px;
+    margin-top: 4px;
+  }
+  .checklist-add-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    outline: none;
+    color: var(--text);
+    font-family: 'Literata', serif;
+    font-size: 16px;
+    padding: 4px 0;
+  }
+  .checklist-add-input::placeholder { color: var(--text-dim); }
+  .checklist-add-btn {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--accent);
+    font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .checklist-stats {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    padding: 8px 4px 0;
+    text-align: right;
+  }
+
   /* ── EDITOR ── */
   #editor-screen .header { padding-bottom: 12px; }
   .editor-title-input {
@@ -573,11 +667,14 @@
 
   <input class="editor-title-input" id="note-title" placeholder="Název poznámky…" maxlength="80">
 
-  <div class="editor-body">
+  <div class="editor-body" id="editor-body">
     <textarea class="editor-content" id="note-content" placeholder="Začni psát…"></textarea>
   </div>
 
+  <div class="checklist-view hidden" id="checklist-view"></div>
+
   <div class="editor-toolbar">
+    <button class="tool-btn" id="checklist-btn" style="color:var(--accent);border-color:rgba(232,197,71,0.3);">☑ Seznam</button>
     <button class="tool-btn ai" id="ai-shrnout-btn">✦ Shrnutí</button>
     <button class="tool-btn ai" id="ai-format-btn">✦ Formátovat</button>
     <button class="tool-btn ai" id="ai-bullets-btn">✦ Odrážky</button>
@@ -1019,7 +1116,136 @@ document.getElementById('sync-pull-btn').addEventListener('click', async () => {
   setSyncStatus(r.msg, r.ok);
 });
 
-// AI buttons
+// ── CHECKLIST ──
+let checklistMode = false;
+
+function parseLines(content) {
+  return content.split('\n');
+}
+
+function linesToContent(lines) {
+  return lines.join('\n');
+}
+
+function enterChecklist() {
+  const content = document.getElementById('note-content').value;
+  const lines = parseLines(content);
+  // Convert non-checkbox non-empty lines to checkboxes
+  const converted = lines.map(line => {
+    if (line.trim() === '') return line;
+    if (line.startsWith('[ ] ') || line.startsWith('[x] ')) return line;
+    // Lines that look like section headers (short, no verb) stay as-is
+    return '[ ] ' + line;
+  });
+  document.getElementById('note-content').value = linesToContent(converted);
+  renderChecklist();
+}
+
+function renderChecklist() {
+  const content = document.getElementById('note-content').value;
+  const lines = parseLines(content);
+  const view = document.getElementById('checklist-view');
+
+  const total = lines.filter(l => l.startsWith('[ ] ') || l.startsWith('[x] ')).length;
+  const done = lines.filter(l => l.startsWith('[x] ')).length;
+
+  let html = '';
+  if (total > 0) {
+    html += `<div class="checklist-stats">${done} / ${total} hotovo</div>`;
+  }
+
+  lines.forEach((line, idx) => {
+    if (line.startsWith('[ ] ') || line.startsWith('[x] ')) {
+      const checked = line.startsWith('[x] ');
+      const text = line.slice(4).replace(/</g,'&lt;');
+      html += `<div class="checklist-item" data-idx="${idx}">
+        <div class="checkbox ${checked ? 'checked' : ''}">${checked ? '✓' : ''}</div>
+        <span class="checklist-text ${checked ? 'done' : ''}">${text}</span>
+      </div>`;
+    } else if (line.trim() !== '') {
+      html += `<div class="checklist-section">${line.replace(/</g,'&lt;')}</div>`;
+    }
+  });
+
+  // Add new item input
+  html += `<div class="checklist-add">
+    <div class="checkbox" style="border-color:var(--text-dim);opacity:0.4;"></div>
+    <input class="checklist-add-input" id="checklist-new-input" placeholder="Přidat položku…" type="text">
+    <button class="checklist-add-btn" id="checklist-add-btn">+</button>
+  </div>`;
+
+  view.innerHTML = html;
+
+  // Bind checkbox taps
+  view.querySelectorAll('.checklist-item').forEach(item => {
+    item.addEventListener('click', () => toggleCheckbox(parseInt(item.dataset.idx)));
+  });
+
+  // Bind add
+  const addInput = view.querySelector('#checklist-new-input');
+  const addBtn = view.querySelector('#checklist-add-btn');
+  const doAdd = () => {
+    const val = addInput.value.trim();
+    if (!val) return;
+    const lines2 = parseLines(document.getElementById('note-content').value);
+    lines2.push('[ ] ' + val);
+    document.getElementById('note-content').value = linesToContent(lines2);
+    autoSync();
+    renderChecklist();
+    // Refocus input
+    const newInput = document.getElementById('checklist-new-input');
+    if (newInput) newInput.focus();
+  };
+  addBtn.addEventListener('click', doAdd);
+  addInput.addEventListener('keydown', e => { if (e.key === 'Enter') doAdd(); });
+
+  // Show checklist, hide textarea
+  document.getElementById('editor-body').classList.add('hidden');
+  view.classList.remove('hidden');
+  checklistMode = true;
+  document.getElementById('checklist-btn').textContent = '✏️ Upravit';
+  document.getElementById('checklist-btn').style.color = 'var(--text-muted)';
+}
+
+function exitChecklist() {
+  document.getElementById('checklist-view').classList.add('hidden');
+  document.getElementById('editor-body').classList.remove('hidden');
+  checklistMode = false;
+  document.getElementById('checklist-btn').textContent = '☑ Seznam';
+  document.getElementById('checklist-btn').style.color = 'var(--accent)';
+}
+
+function toggleCheckbox(lineIndex) {
+  const lines = parseLines(document.getElementById('note-content').value);
+  if (lines[lineIndex].startsWith('[ ] ')) {
+    lines[lineIndex] = '[x] ' + lines[lineIndex].slice(4);
+  } else if (lines[lineIndex].startsWith('[x] ')) {
+    lines[lineIndex] = '[ ] ' + lines[lineIndex].slice(4);
+  }
+  document.getElementById('note-content').value = linesToContent(lines);
+  renderChecklist();
+  // Auto-save silently
+  if (currentNote) {
+    currentNote.content = document.getElementById('note-content').value;
+    currentNote.updatedAt = Date.now();
+    DB.save(notes);
+    autoSync();
+  }
+}
+
+document.getElementById('checklist-btn').addEventListener('click', () => {
+  if (checklistMode) exitChecklist();
+  else enterChecklist();
+});
+
+// Reset checklist mode when opening new note
+const _origOpenNote = openNote;
+function openNote(id) {
+  exitChecklist();
+  _origOpenNote(id);
+}
+
+
 document.getElementById('ai-shrnout-btn').addEventListener('click', () => {
   const c = getEditorContent();
   if (!c) return alert('Poznámka je prázdná.');
